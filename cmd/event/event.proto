@@ -1,0 +1,41 @@
+syntax = "proto3";
+package event;
+service Event {
+  rpc MakeEvent(MakeEventRequest) return (MakeEventResponce);
+  rpc GetEvent(GetEventRequest) return (GetEventResponce);
+  rpc DeleteEvent(DeleteEventRequest) return (DeleteEventResponce);
+  rpc GetEvents(GetEventsRequest) return (GetEventsResponce);
+}
+message MakeEventRequest {
+int64 senderID = 1;
+int64 time= 2;
+string name =3;
+}
+message MakeEventResponse {
+int64 eventID= 1;
+}
+message GetEventRequest {
+int64 senderID = 1;
+int64 eventID = 2;
+}
+message GetEventRequest {
+int64 senderID = 1;
+int64 eventID = 2;
+int64 time;
+string name;
+}
+message DeleteEventResponse {
+string deleteresponse = 1;
+}
+message DeleteEventRequest {
+int64 senderID = 1;
+int64 eventID = 2;
+}
+message GetEventsResponse {
+// TODO using stream 
+}
+message GetEventsRequest {
+int64 senderID = 1;
+int64 fromtime = 2;
+int64 totime = 3;
+}
