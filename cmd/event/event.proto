@@ -1,12 +1,12 @@
 syntax = "proto3";
 
 package event;
-
+option go_package = ".";
 service Event {
-  rpc MakeEvent(MakeEventRequest) returns (MakeEventResponce);
-  rpc GetEvent(GetEventRequest) returns (GetEventResponce);
-  rpc DeleteEvent(GetEventRequest) returns (DeleteEventResponce);
-  rpc GetEvents(GetEventsRequest) returns (stream GetEventsResponce);
+  rpc MakeEvent(MakeEventRequest) returns (MakeEventResponse);
+  rpc GetEvent(GetEventRequest) returns (GetEventResponse);
+  rpc DeleteEvent(GetEventRequest) returns (DeleteEventResponse);
+  rpc GetEvents(GetEventsRequest) returns (stream GetEventsResponse);
 }
 
 message MakeEventRequest {
@@ -27,8 +27,8 @@ int64 eventID = 2;
 message GetEventResponse {
 int64 senderID = 1;
 int64 eventID = 2;
-int64 time;
-string name;
+int64 time = 3;
+string name = 4;
 }
 
 message DeleteEventResponse {
@@ -44,5 +44,5 @@ int64 totime = 3;
 message GetEventsResponse {
 int64 senderID = 1;
 int64 time = 2;   
-repeated events = 3;
+repeated string events = 3;
 }
