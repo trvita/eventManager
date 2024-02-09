@@ -20,7 +20,7 @@ all: module proto compile run
 module:
 	go mod tidy
 proto:
-	protoc --go_out=./$(API_DIR) $(API_DIR)/$(RPC_DIR)/$(PCG_NAME).proto
+	protoc --go_out=./$(API_DIR) $(API_DIR)/$(RPC_DIR)/$(PCG_NAME).proto &&	protoc --go-grpc_out=./$(API_DIR) $(API_DIR)/$(RPC_DIR)/$(PCG_NAME).proto
 compile:
 	$(GO_BUILD) -o $(BIN_DIR)/$(APP_NAME) $(APP_SOURCES)
 run:

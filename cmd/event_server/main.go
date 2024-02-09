@@ -20,15 +20,15 @@
 package main
 
 import (
+	"event/api/eventapi"
+	eventsrv "event/internal/event_server"
 	"flag"
 	"fmt"
-	"net"
 	"log"
-	"google.golang.org/grpc"
-	"github.com/trvita/eventManager/internal/event_server/eventsrv"
-	"github.com/trvita/eventManager/api/grpc/helloworld"
-)
+	"net"
 
+	"google.golang.org/grpc"
+)
 var (
 	port = flag.Int("port", 50051, "The server port")
 )
@@ -41,7 +41,7 @@ func main() {
 	}
 	s := grpc.NewServer()
 	server := eventsrv.MakeNewEventServer()
-	eventsrv.pb.RegisterGreeterServer(s, server)
+	eventapi.RegisterGreeterServer(s, server)
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
