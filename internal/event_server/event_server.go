@@ -1,13 +1,13 @@
-package event_server
+package eventsrv
 
 import (
 	"context"
 
 	"log"
 
-	pb "api/eventapi"
+	pb "github.com/trvita/eventManager/api/eventapi/eventapi"
 
-	"google.golang.org/grpc/examples/helloworld/helloworld"
+	"github.com/trvita/eventManager/api/eventapi/helloworld"
 )
 
 type server struct {

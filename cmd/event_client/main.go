@@ -27,9 +27,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	pb "api/eventapi"
-	"internal/event_client"
-	
+	pb "github.com/trvita/eventManager/api/eventapi/eventapi"
 )
 
 const (

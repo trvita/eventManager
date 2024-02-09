@@ -25,7 +25,7 @@ import (
 	"net"
 	"log"
 	"google.golang.org/grpc"
-	"github.com/trvita/eventManager/internal/event_server"
+	"github.com/trvita/eventManager/internal/event_server/eventsrv"
 )
 
 var (
