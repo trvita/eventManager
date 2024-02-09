@@ -23,7 +23,7 @@ func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 	return &pb.HelloReply{Message: "Hello " + in.GetName()}, nil
 }
 
-// func (s *server) MakeEvent(ctx context.Context, in *pb.MakeEventRequest) (*pb.MakeEventResponse, error) {
-// 	log.Printf("Sender ID: %d\nTime: %d\nEvent Name: %d", in.GetSenderID(), in.GetTime(), in.GetName())
-// 	return &pb.HelloReply{Message: "Hello " + in.GetName()}, nil
-// }
+func (s *server) MakeEvent(ctx context.Context, in *pb.MakeEventRequest) (*pb.MakeEventResponse, error) {
+	log.Printf("Sender ID: %d\nTime: %d\nEvent Name: %d", in.GetSenderID(), in.GetTime(), in.GetName())
+	return &pb.HelloReply{Message: "Hello " + in.GetName()}, nil
+}

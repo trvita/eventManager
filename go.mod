@@ -6,7 +6,7 @@ require (
 	google.golang.org/grpc v1.61.0
 	google.golang.org/protobuf v1.32.0
 	github.com/trvita/eventManager/internal/event_server v1.0.0
-	github.com/trvita/eventManager/api/eventapi v1.0.0
+	github.com/trvita/eventManager/api/eventapi/api v1.0.0
 )
 
 require (

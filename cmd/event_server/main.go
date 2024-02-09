@@ -26,6 +26,7 @@ import (
 	"log"
 	"google.golang.org/grpc"
 	"github.com/trvita/eventManager/internal/event_server/eventsrv"
+	"github.com/trvita/eventManager/api/grpc/helloworld"
 )
 
 var (
@@ -40,7 +41,7 @@ func main() {
 	}
 	s := grpc.NewServer()
 	server := eventsrv.MakeNewEventServer()
-	pb.RegisterGreeterServer(s, server)
+	eventsrv.pb.RegisterGreeterServer(s, server)
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
