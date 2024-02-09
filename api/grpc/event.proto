@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+option go_package = "/eventapi";
+
+package helloworld;
+
+service Greeter {
+  rpc SayHello (HelloRequest) returns (HelloReply);
+  rpc MakeEvent(MakeEventRequest) returns (MakeEventResponse);
+}
+
+message HelloRequest {
+  string name = 1;
+}
+message HelloReply {
+  string message = 1;
+}
+message MakeEventRequest {
+    int64 senderID = 1;
+    int64 time= 2;
+    string name =3;
+}
+message MakeEventResponse {
+    int64 eventID= 1;
+}
+
+
+// service Event {
+//   rpc MakeEvent(MakeEventRequest) returns (MakeEventResponse);
+//   rpc GetEvent(GetEventRequest) returns (GetEventResponse);
+//   rpc DeleteEvent(GetEventRequest) returns (DeleteEventResponse);
+//   rpc GetEvents(GetEventsRequest) returns (stream GetEventsResponse);
+// }
+
+// message MakeEventRequest {
+// int64 senderID = 1;
+// int64 time= 2;
+// string name =3;
+// }
+
+// message MakeEventResponse {
+// int64 eventID= 1;
+// }
+
+// message GetEventRequest {
+// int64 senderID = 1;
+// int64 eventID = 2;
+// }
+
+// message GetEventResponse {
+// int64 senderID = 1;
+// int64 eventID = 2;
+// int64 time = 3;
+// string name = 4;
+// }
+
+// message DeleteEventResponse {
+// string deleteresponse = 1;
+// }
+
+// message GetEventsRequest {
+// int64 senderID = 1;
+// int64 fromtime = 2;
+// int64 totime = 3;
+// }
+
+// message GetEventsResponse {
+// int64 senderID = 1;
+// int64 time = 2;   
+// repeated string events = 3;
+// }
