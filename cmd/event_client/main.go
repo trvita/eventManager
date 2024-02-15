@@ -23,36 +23,33 @@ import (
 	"context"
 	"event/api/eventapi"
 	"flag"
+	"fmt"
 	"log"
-	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-const (
-	defaultName = "world"
-)
-
 var (
-	addr = flag.String("addr", "localhost:50051", "the address to connect to")
-	name = flag.String("name", defaultName, "Name to greet")
+	addr = flag.String("dst", "localhost", "The server IP address")
+	port = flag.Int("p", 50051, "The server port")
 )
 
 func main() {
 	flag.Parse()
-	conn, err := grpc.Dial(*addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", *addr, *port), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("did not connect: %v", err)
+		log.Fatalf("Failed to connect to server: %v", err)
 	}
 	defer conn.Close()
-	c := eventapi.NewGreeterClient(conn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	r, err := c.SayHello(ctx, &eventapi.HelloRequest{Name: *name})
+	c := eventapi.NewEventClient(conn)
+	r, err := c.MakeEvent(context.Background(), &eventapi.MakeEventRequest{
+		SenderID: 123,
+		Time:     20,
+		Name:     "some event",
+	})
 	if err != nil {
-		log.Fatalf("could not greet: %v", err)
+		log.Fatalf("could not make event: %v", err)
 	}
-	log.Printf("Greeting: %s", r.GetMessage())
+	log.Printf("Event ID: %d", r.GetEventID())
 }
