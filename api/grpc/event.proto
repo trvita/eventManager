@@ -46,7 +46,5 @@ int64 totime = 3;
 
 message GetEventsResponse {
 int64 senderID = 1;
-int64 fromtime = 2; 
-int64 totime = 3;  
-repeated Event events = 4;
+repeated Event events = 2;
 }
