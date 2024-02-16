@@ -45,17 +45,13 @@ func failOnError(err error, msg string) {
 
 func main() {
 	flag.Parse()
+
 	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *addr, *port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
+
 	s := grpc.NewServer()
-	server := eventsrv.MakeNewEventServer()
-	eventapi.RegisterEventManagerServer(s, server)
-	log.Printf("server listening at %v", lis.Addr())
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
 
 	conn, err := amqp.Dial(fmt.Sprintf("amqp://guest:guest@%s:%d/", *addr, *port))
 	failOnError(err, "Failed to connect to RabbitMQ")
@@ -64,29 +60,13 @@ func main() {
 	failOnError(err, "Failed to open a channel")
 	defer ch.Close()
 
-	ch.ExchangeDeclare(
-		"events", // exchange
-		"direct", // destination = routing key (sender-id)
-		false,    // durable
-		false,    // autoDelete
-		false,    // internal
-		false,    // no-wait
-		nil,      // arguments
-	)
-	// в цикле для каждого пользователя объявить очередь?
-	ch.QueueDeclare(
-		"1",   //queue name = sender-id + session-id
-		false, // durable
-		false, // autoDelete
-		false, // internal
-		false, // no-wait
-		nil,   // arguments
-	)
-	ch.QueueBind(
-		"1",      // queue name = sender-id + session-id
-		"1",      // routing key = sender-id
-		"events", // exchange name
-		false,    // no-wait
-		nil,      // arguments
-	)
+	server := eventsrv.MakeNewEventServer(ch)
+
+	eventapi.RegisterEventManagerServer(s, server)
+
+	log.Printf("server listening at %v", lis.Addr())
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
+	}
+	
 }
