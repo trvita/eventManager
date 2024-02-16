@@ -22,11 +22,13 @@ package main
 import (
 	"event/api/eventapi"
 	eventsrv "event/internal/event_server"
+
 	"flag"
 	"fmt"
 	"log"
 	"net"
 
+	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/grpc"
 )
 
@@ -34,6 +36,12 @@ var (
 	addr = flag.String("h", "localhost", "The server IP address")
 	port = flag.Int("p", 50051, "The server port")
 )
+
+func failOnError(err error, msg string) {
+	if err != nil {
+		log.Panicf("%s: %s", msg, err)
+	}
+}
 
 func main() {
 	flag.Parse()
@@ -48,4 +56,37 @@ func main() {
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
+
+	conn, err := amqp.Dial(fmt.Sprintf("amqp://guest:guest@%s:%d/", *addr, *port))
+	failOnError(err, "Failed to connect to RabbitMQ")
+	defer conn.Close()
+	ch, err := conn.Channel()
+	failOnError(err, "Failed to open a channel")
+	defer ch.Close()
+
+	ch.ExchangeDeclare(
+		"events", // exchange
+		"direct", // destination = routing key (sender-id)
+		false,    // durable
+		false,    // autoDelete
+		false,    // internal
+		false,    // no-wait
+		nil,      // arguments
+	)
+	// в цикле для каждого пользователя объявить очередь?
+	ch.QueueDeclare(
+		"1",   //queue name = sender-id + session-id
+		false, // durable
+		false, // autoDelete
+		false, // internal
+		false, // no-wait
+		nil,   // arguments
+	)
+	ch.QueueBind(
+		"1",      // queue name = sender-id + session-id
+		"1",      // routing key = sender-id
+		"events", // exchange name
+		false,    // no-wait
+		nil,      // arguments
+	)
 }

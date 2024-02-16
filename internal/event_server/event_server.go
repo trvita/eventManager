@@ -11,20 +11,33 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type server struct {
+type Server struct {
 	eventapi.UnimplementedEventManagerServer
-	eventsMap      map[int64]*eventapi.Event
-	eventIDCounter int64
+	eventsMap       map[int64]*eventapi.Event
+	eventIDCounter  int64
+	senderIDCounter int64
 }
 
 func MakeNewEventServer() eventapi.EventManagerServer {
-	return &server{
-		eventsMap:      make(map[int64]*eventapi.Event),
-		eventIDCounter: 1,
+	return &Server{
+		eventsMap:       make(map[int64]*eventapi.Event),
+		eventIDCounter:  1,
+		senderIDCounter: 0,
 	}
 }
 
-func (s *server) MakeEvent(ctx context.Context, in *eventapi.MakeEventRequest) (*eventapi.MakeEventResponse, error) {
+func (s *Server) GreetSender(ctx context.Context, in *eventapi.GreetSenderRequest) (*eventapi.GreetSenderResponse, error) {
+	if in.SenderID == 0 {
+		s.senderIDCounter++
+		log.Printf("%d connected", s.senderIDCounter)
+		return &eventapi.GreetSenderResponse{SenderID: s.senderIDCounter}, nil
+	} else {
+		log.Printf("%d connected", s.senderIDCounter)
+		return &eventapi.GreetSenderResponse{SenderID: in.SenderID}, nil
+	}
+}
+
+func (s *Server) MakeEvent(ctx context.Context, in *eventapi.MakeEventRequest) (*eventapi.MakeEventResponse, error) {
 	eventID := s.eventIDCounter
 	s.eventIDCounter++
 	event := &eventapi.Event{
@@ -40,7 +53,7 @@ func (s *server) MakeEvent(ctx context.Context, in *eventapi.MakeEventRequest) (
 	log.Printf("%d made event: %d", event.SenderID, eventID)
 	return &eventapi.MakeEventResponse{EventID: eventID}, status.New(codes.OK, "").Err()
 }
-func (s *server) GetEvent(ctx context.Context, in *eventapi.GetEventRequest) (*eventapi.GetEventResponse, error) {
+func (s *Server) GetEvent(ctx context.Context, in *eventapi.GetEventRequest) (*eventapi.GetEventResponse, error) {
 	eventID := in.EventID
 	senderID := in.SenderID
 	event, exists := s.eventsMap[eventID]
@@ -57,7 +70,7 @@ func (s *server) GetEvent(ctx context.Context, in *eventapi.GetEventRequest) (*e
 		},
 	}, status.New(codes.OK, "").Err()
 }
-func (s *server) DeleteEvent(ctx context.Context, in *eventapi.GetEventRequest) (*eventapi.DeleteEventResponse, error) {
+func (s *Server) DeleteEvent(ctx context.Context, in *eventapi.GetEventRequest) (*eventapi.DeleteEventResponse, error) {
 	eventID := in.EventID
 	senderID := in.SenderID
 	event, exists := s.eventsMap[eventID]
@@ -69,7 +82,7 @@ func (s *server) DeleteEvent(ctx context.Context, in *eventapi.GetEventRequest) 
 	log.Print(deleteresponse)
 	return &eventapi.DeleteEventResponse{Deleteresponse: deleteresponse}, status.New(codes.OK, "").Err()
 }
-func (s *server) GetEvents(in *eventapi.GetEventsRequest, stream eventapi.EventManager_GetEventsServer) error {
+func (s *Server) GetEvents(in *eventapi.GetEventsRequest, stream eventapi.EventManager_GetEventsServer) error {
 	fromTime := time.Unix(0, in.Fromtime)
 	toTime := time.Unix(0, in.Totime)
 	var eventsToSend []*eventapi.Event
@@ -86,4 +99,10 @@ func (s *server) GetEvents(in *eventapi.GetEventsRequest, stream eventapi.EventM
 	}
 	log.Printf("%d requested events", in.SenderID)
 	return stream.Send(response)
+}
+
+func (s *Server) Exit(ctx context.Context, in *eventapi.ExitRequest) (*eventapi.ExitResponse, error) {
+	log.Printf("%d exited", in.SenderID)
+	goodbye := fmt.Sprintf("Goodbye, %d", in.SenderID)
+	return &eventapi.ExitResponse{Goodbye: goodbye}, nil
 }

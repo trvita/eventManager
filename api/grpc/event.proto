@@ -5,11 +5,38 @@ option go_package = "/eventapi";
 package event;
 
 service EventManager {
+  rpc GreetSender(GreetSenderRequest) returns (GreetSenderResponse);
+
   rpc MakeEvent(MakeEventRequest) returns (MakeEventResponse);
   rpc GetEvent(GetEventRequest) returns (GetEventResponse);
   rpc DeleteEvent(GetEventRequest) returns (DeleteEventResponse);
   rpc GetEvents(GetEventsRequest) returns (stream GetEventsResponse);
+
+//   rpc ExchangeDeclare(ExchangeDeclareRequest) returns (ExchangeDeclareResponse);
+//   rpc QueueDeclare(QueueDeclareRequest) returns (QueueDeclareResponse);
+//   rpc Bind(BindRequest) returns (BindResponse);
+//   rpc Publish(PublishRequest) returns (PublishResponse);
+//   rpc Subscribe(SubscribeRequest) returns (SubscribeResponse);
+
+  rpc Exit(ExitRequest) returns (ExitResponse);
 }
+
+message GreetSenderRequest {
+    int64 senderID = 1;
+}
+
+message GreetSenderResponse {
+    int64 senderID = 1;
+}
+
+message ExitRequest {
+    int64 senderID = 1;
+}
+
+message ExitResponse {
+    string goodbye = 1;
+}
+
 message Event {
     int64 senderID = 1;
     int64 eventID = 2;
@@ -48,3 +75,43 @@ message GetEventsResponse {
 int64 senderID = 1;
 repeated Event events = 2;
 }
+
+// message ExchangeDeclareRequest {
+
+// }
+// message ExchangeDeclareResponse {
+    
+// }
+
+// message QueueDeclareRequest {
+
+// }
+// message QueueDeclareResponse {
+    
+// }
+
+// message BindRequest {
+//     // ? eventExchange = 1;
+//     int64 routingKey = 2; // senderID
+//     // ? queue = 3;
+// }
+
+// message BindResponse {
+    
+// }
+
+// message PublishRequest {
+//     // ? eventExchange = 1;
+//     int64 routingKey = 2; // senderID
+//     Event event = 3;
+// }
+
+// message PublishResponse {
+    
+// }
+// message SubscribeRequest {
+
+// }
+// message SubscribeResponse {
+    
+// }

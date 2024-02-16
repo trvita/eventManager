@@ -1,8 +1,23 @@
 # eventManager
-gRPC client and server, make, get and delete events
 
-module api contains packages helloworld, eventapi
+##gRPC client and server:
 
-module internal/event_server contains package eventsrv
+&nbspMakeEvent
+&nbspGetEvent
+&nbspDeleteevent
+&nbspGetEvents
 
-module event contains package main
+##AMQP broker:
+
+&nbspExhangeDeclare
+&nbspQueueDeclare
+&nbspBind{ex, rk, queue}
+&nbspPublish{ex, rk, event}
+&nbspSubscribe{queue}  
+rk - routing key = "senderID"  
+ex - exchange = "senderID"  
+queueName - "senderID + sessionID"
+
+example: clients send to server commands 'MakeEvent'  
+server sends to broker command Publish  
+broker sends to clients their Events
