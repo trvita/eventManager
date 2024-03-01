@@ -22,6 +22,12 @@ type Server struct {
 	channel         *amqp.Channel
 }
 
+func FailOnError(err error, msg string) {
+	if err != nil {
+		log.Panicf("\u001b[31m%s: %s\u001b[0m", msg, err)
+	}
+}
+
 func MakeNewEventServer(ch *amqp.Channel) eventapi.EventManagerServer {
 	return &Server{
 		eventsMap:       make(map[int64]*eventapi.Event),
@@ -33,46 +39,62 @@ func MakeNewEventServer(ch *amqp.Channel) eventapi.EventManagerServer {
 }
 
 func (s *Server) GreetSender(ctx context.Context, in *eventapi.GreetSenderRequest) (*eventapi.GreetSenderResponse, error) {
+
 	if in.SenderID == 0 {
 		s.senderIDCounter++
 		senderID := s.senderIDCounter
-		log.Printf("%d connected", senderID)
+		log.Printf("%d connected, sessionID: %d", senderID, in.SessionID)
+		// exchangeName := "EventExchange"
+		// err := s.channel.ExchangeDeclare(
+		// 	exchangeName,
+		// 	"direct",
+		// 	true,  // durable
+		// 	false, // autoDelete
+		// 	false, // internal
+		// 	false, // noWait
+		// 	nil,   // arguments
+		// )
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// queueName := fmt.Sprintf("%d", senderID)
+		// // queueName := fmt.Sprintf("%d+%d", senderID, s.sessionID)
+		// q, err := s.channel.QueueDeclare(
+		// 	queueName,
+		// 	true,  // durable
+		// 	false, // autoDelete
+		// 	false, // not exclusive, others can subscribe too
+		// 	false, // noWait
+		// 	nil,   // arguments
+		// )
+		// eventcl.FailOnError(err, "Failed to declare a queue")
 
-		exchangeName := fmt.Sprintf("%d", senderID)
-		err := s.channel.ExchangeDeclare(
-			exchangeName,
-			"direct", // или другой тип обмена, который вам нужен
-			true,     // durable
-			false,    // autoDelete
-			false,    // internal
-			false,    // noWait
-			nil,      // arguments
-		)
-		if err != nil {
-			return nil, err
-		}
-		queueName := fmt.Sprintf("%d:%d", senderID, s.sessionID)
-		_, err = s.channel.QueueDeclare(
-			queueName,
-			true,  // durable
-			false, // autoDelete
-			false, // not exclusive, others can subscribe too
-			false, // noWait
-			nil,   // arguments
-		)
-		if err != nil {
-			return nil, err
-		}
-		err = s.channel.QueueBind(
-			queueName,
-			queueName,
-			exchangeName,
-			false, // noWait
-			nil,   // arguments
-		)
-		if err != nil {
-			return nil, err
-		}
+		// ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		// defer cancel()
+
+		// body := "Hello World!"
+		// err = s.channel.PublishWithContext(ctx,
+		// 	"",     // exchange
+		// 	q.Name, // routing key
+		// 	false,  // mandatory
+		// 	false,  // immediate
+		// 	amqp.Publishing{
+		// 		ContentType: "text/plain",
+		// 		Body:        []byte(body),
+		// 	})
+		// FailOnError(err, "Failed to publish a message")
+		// log.Printf(" [x] Sent %s\n", body)
+
+		// err = s.channel.QueueBind(
+		// 	queueName,
+		// 	queueName,
+		// 	exchangeName,
+		// 	false, // noWait
+		// 	nil,   // arguments
+		// )
+		// if err != nil {
+		// 	return nil, err
+		// }
 		return &eventapi.GreetSenderResponse{SenderID: senderID}, nil
 	} else {
 		log.Printf("%d connected", in.SenderID)
@@ -95,15 +117,19 @@ func (s *Server) MakeEvent(ctx context.Context, in *eventapi.MakeEventRequest) (
 	s.eventsMap[eventID] = event
 	log.Printf("%d made event: %d", event.SenderID, eventID)
 	exchangeName := fmt.Sprintf("%d", in.SenderID)
+	queueName := fmt.Sprintf("%d", in.SenderID)
+	expiration := fmt.Sprintf("%d", in.Time)
 	err := s.channel.PublishWithContext(
 		ctx,
 		exchangeName, // exchange
-		exchangeName, // routing key
+		queueName,    // routing key
 		false,        // mandatory
 		false,        // immediate
 		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        []byte(fmt.Sprintf(`{"eventID": %d, "senderID": %d, "time": %d, "name": "%s"}`, eventID, in.SenderID, in.Time, in.Name)),
+			DeliveryMode: amqp.Persistent,
+			ContentType:  "application/json",
+			Expiration:   expiration,
+			Body:         []byte(fmt.Sprintf(`{"eventID": %d, "senderID": %d, "time": %d, "name": "%s"}`, eventID, in.SenderID, in.Time, in.Name)),
 		},
 	)
 	if err != nil {

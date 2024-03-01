@@ -17,6 +17,7 @@ service EventManager {
 
 message GreetSenderRequest {
     int64 senderID = 1;
+    int64 sessionID = 2;
 }
 
 message GreetSenderResponse {
