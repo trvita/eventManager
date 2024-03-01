@@ -5,11 +5,33 @@ option go_package = "/eventapi";
 package event;
 
 service EventManager {
+  rpc GreetSender(GreetSenderRequest) returns (GreetSenderResponse);
+
   rpc MakeEvent(MakeEventRequest) returns (MakeEventResponse);
   rpc GetEvent(GetEventRequest) returns (GetEventResponse);
   rpc DeleteEvent(GetEventRequest) returns (DeleteEventResponse);
   rpc GetEvents(GetEventsRequest) returns (stream GetEventsResponse);
+
+  rpc Exit(ExitRequest) returns (ExitResponse);
 }
+
+message GreetSenderRequest {
+    int64 senderID = 1;
+    int64 sessionID = 2;
+}
+
+message GreetSenderResponse {
+    int64 senderID = 1;
+}
+
+message ExitRequest {
+    int64 senderID = 1;
+}
+
+message ExitResponse {
+    string goodbye = 1;
+}
+
 message Event {
     int64 senderID = 1;
     int64 eventID = 2;
@@ -26,25 +48,25 @@ message MakeEventResponse {
 }
 
 message GetEventRequest {
-int64 senderID = 1;
-int64 eventID = 2;
+    int64 senderID = 1;
+    int64 eventID = 2;
 }
 
 message GetEventResponse {
-Event event = 1;
+    Event event = 1;
 }
 
 message DeleteEventResponse {
-string deleteresponse = 1;
+    string deleteresponse = 1;
 }
 
 message GetEventsRequest {
-int64 senderID = 1;
-int64 fromtime = 2;
-int64 totime = 3;
+    int64 senderID = 1;
+    int64 fromtime = 2;
+    int64 totime = 3;
 }
 
 message GetEventsResponse {
-int64 senderID = 1;
-repeated Event events = 2;
+    int64 senderID = 1;
+    repeated Event events = 2;
 }
