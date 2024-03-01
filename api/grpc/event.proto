@@ -12,12 +12,6 @@ service EventManager {
   rpc DeleteEvent(GetEventRequest) returns (DeleteEventResponse);
   rpc GetEvents(GetEventsRequest) returns (stream GetEventsResponse);
 
-//   rpc ExchangeDeclare(ExchangeDeclareRequest) returns (ExchangeDeclareResponse);
-//   rpc QueueDeclare(QueueDeclareRequest) returns (QueueDeclareResponse);
-//   rpc Bind(BindRequest) returns (BindResponse);
-//   rpc Publish(PublishRequest) returns (PublishResponse);
-//   rpc Subscribe(SubscribeRequest) returns (SubscribeResponse);
-
   rpc Exit(ExitRequest) returns (ExitResponse);
 }
 
@@ -53,65 +47,25 @@ message MakeEventResponse {
 }
 
 message GetEventRequest {
-int64 senderID = 1;
-int64 eventID = 2;
+    int64 senderID = 1;
+    int64 eventID = 2;
 }
 
 message GetEventResponse {
-Event event = 1;
+    Event event = 1;
 }
 
 message DeleteEventResponse {
-string deleteresponse = 1;
+    string deleteresponse = 1;
 }
 
 message GetEventsRequest {
-int64 senderID = 1;
-int64 fromtime = 2;
-int64 totime = 3;
+    int64 senderID = 1;
+    int64 fromtime = 2;
+    int64 totime = 3;
 }
 
 message GetEventsResponse {
-int64 senderID = 1;
-repeated Event events = 2;
+    int64 senderID = 1;
+    repeated Event events = 2;
 }
-
-// message ExchangeDeclareRequest {
-
-// }
-// message ExchangeDeclareResponse {
-    
-// }
-
-// message QueueDeclareRequest {
-
-// }
-// message QueueDeclareResponse {
-    
-// }
-
-// message BindRequest {
-//     // ? eventExchange = 1;
-//     int64 routingKey = 2; // senderID
-//     // ? queue = 3;
-// }
-
-// message BindResponse {
-    
-// }
-
-// message PublishRequest {
-//     // ? eventExchange = 1;
-//     int64 routingKey = 2; // senderID
-//     Event event = 3;
-// }
-
-// message PublishResponse {
-    
-// }
-// message SubscribeRequest {
-
-// }
-// message SubscribeResponse {
-    
-// }
