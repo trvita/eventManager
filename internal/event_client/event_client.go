@@ -8,6 +8,9 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
+
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func FailOnError(err error, msg string) {
@@ -15,6 +18,65 @@ func FailOnError(err error, msg string) {
 		log.Panicf("\u001b[31m%s: %s\u001b[0m", msg, err)
 	}
 }
+func ProcessCommands(c eventapi.EventManagerClient, ctx context.Context, sdid *int64, ssid int64, commandChan chan []string) {
+	for {
+		select {
+		case command := <-commandChan:
+			switch strings.ToLower(command[0]) {
+			case "makeevent":
+				MakeEvent(command, c)
+			case "getevent":
+				GetEvent(command, c, ctx)
+			case "deleteevent":
+				DeleteEvent(command, c, ctx)
+			case "getevents":
+				GetEvents(command, c, ctx)
+			case "exit":
+				Exit(command, c, ctx, sdid)
+			default:
+				fmt.Printf("\u001b[93m > Unknown command. Available commands: MakeEvent, GetEvent, DeleteEvent, GetEvents, Exit\n\u001b[0m")
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+func GetMessages(sdid *int64, c eventapi.EventManagerClient) {
+	brkconn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	FailOnError(err, "Failed to connect to RabbitMQ")
+	defer brkconn.Close()
+
+	ch, err := brkconn.Channel()
+	FailOnError(err, "Failed to open a channel")
+	defer ch.Close()
+
+	queueName := fmt.Sprintf("%d", sdid)
+	q, err := ch.QueueDeclare(
+		queueName, // name
+		true,      // durable
+		false,     // delete when unused
+		false,     // exclusive
+		false,     // no-wait
+		nil,       // arguments
+	)
+	FailOnError(err, "Failed to declare a queue")
+
+	msgs, err := ch.Consume(
+		q.Name, // queue
+		"",     // consumer
+		true,   // auto-ack
+		false,  // exclusive
+		false,  // no-local
+		false,  // no-wait
+		nil,    // args
+	)
+	FailOnError(err, "Failed to register a consumer")
+	for d := range msgs {
+		log.Printf("Received a message: %s", d.Body)
+		log.Printf("Done")
+	}
+}
+
 func MakeEvent(command []string, c eventapi.EventManagerClient) {
 	if len(command) != 4 {
 		fmt.Printf("\u001b[93m > Usage: %s <sender-id> <event-time> <event-name>\n\u001b[0m", command[0])
@@ -157,6 +219,6 @@ func Exit(command []string, c eventapi.EventManagerClient, ctx context.Context, 
 		SenderID: *sdid,
 	})
 	FailOnError(err, "Failed to get sender ID")
-	fmt.Println("\u001b[93m > ", r.Goodbye, "\u001b[0m")
+	fmt.Println("\u001b[93m >", r.Goodbye, "\u001b[0m")
 	os.Exit(0)
 }
