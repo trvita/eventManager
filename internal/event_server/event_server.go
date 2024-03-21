@@ -13,6 +13,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+var ExchangeName = "EventExchange"
+
 type Server struct {
 	eventapi.UnimplementedEventManagerServer
 	eventsMap       map[int64]*eventapi.Event
@@ -27,6 +29,22 @@ func FailOnError(err error, msg string) {
 		log.Panicf("\u001b[31m%s: %s\u001b[0m", msg, err)
 	}
 }
+func ProcessEvents(ctx context.Context, s *Server) {
+	for {
+		currentTime := time.Now().Unix()
+		for eventID, event := range s.eventsMap {
+			if currentTime >= event.Time {
+				err := s.PublishMessages(ctx, event)
+				if err != nil {
+					log.Printf("\u001b[93mSERVER\u001b[0m: Error publishing message for eventID %d: %v", eventID, err)
+					continue
+				}
+				delete(s.eventsMap, eventID)
+			}
+		}
+		time.Sleep(1 * time.Second)
+	}
+}
 
 func MakeNewEventServer(ch *amqp.Channel) eventapi.EventManagerServer {
 	return &Server{
@@ -39,67 +57,34 @@ func MakeNewEventServer(ch *amqp.Channel) eventapi.EventManagerServer {
 }
 
 func (s *Server) GreetSender(ctx context.Context, in *eventapi.GreetSenderRequest) (*eventapi.GreetSenderResponse, error) {
-
-	if in.SenderID == 0 {
+	senderID := in.SenderID
+	if senderID == 0 { // null senderID means new sender
 		s.senderIDCounter++
-		senderID := s.senderIDCounter
-		log.Printf("%d connected, sessionID: %d", senderID, in.SessionID)
-		// exchangeName := "EventExchange"
-		// err := s.channel.ExchangeDeclare(
-		// 	exchangeName,
-		// 	"direct",
-		// 	true,  // durable
-		// 	false, // autoDelete
-		// 	false, // internal
-		// 	false, // noWait
-		// 	nil,   // arguments
-		// )
-		// if err != nil {
-		// 	return nil, err
-		// }
-		// queueName := fmt.Sprintf("%d", senderID)
-		// // queueName := fmt.Sprintf("%d+%d", senderID, s.sessionID)
-		// q, err := s.channel.QueueDeclare(
-		// 	queueName,
-		// 	true,  // durable
-		// 	false, // autoDelete
-		// 	false, // not exclusive, others can subscribe too
-		// 	false, // noWait
-		// 	nil,   // arguments
-		// )
-		// eventcl.FailOnError(err, "Failed to declare a queue")
-
-		// ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		// defer cancel()
-
-		// body := "Hello World!"
-		// err = s.channel.PublishWithContext(ctx,
-		// 	"",     // exchange
-		// 	q.Name, // routing key
-		// 	false,  // mandatory
-		// 	false,  // immediate
-		// 	amqp.Publishing{
-		// 		ContentType: "text/plain",
-		// 		Body:        []byte(body),
-		// 	})
-		// FailOnError(err, "Failed to publish a message")
-		// log.Printf(" [x] Sent %s\n", body)
-
-		// err = s.channel.QueueBind(
-		// 	queueName,
-		// 	queueName,
-		// 	exchangeName,
-		// 	false, // noWait
-		// 	nil,   // arguments
-		// )
-		// if err != nil {
-		// 	return nil, err
-		// }
-		return &eventapi.GreetSenderResponse{SenderID: senderID}, nil
-	} else {
-		log.Printf("%d connected", in.SenderID)
-		return &eventapi.GreetSenderResponse{SenderID: in.SenderID}, nil
+		senderID = s.senderIDCounter
 	}
+	queueName := fmt.Sprintf("%d", senderID)
+	_, err := s.channel.QueueDeclare(
+		queueName,
+		true,  // durable
+		false, // autoDelete
+		false, // not exclusive, others can subscribe too
+		false, // noWait
+		nil,   // arguments
+	)
+	FailOnError(err, "Failed to declare a queue")
+
+	err = s.channel.QueueBind(
+		queueName,
+		queueName, // routing key
+		ExchangeName,
+		false, // noWait
+		nil,   // arguments
+	)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("\u001b[93mSERVER\u001b[0m: Connected senderID %d, sessionID: %d", in.SenderID, in.SessionID)
+	return &eventapi.GreetSenderResponse{SenderID: senderID}, nil
 }
 
 func (s *Server) MakeEvent(ctx context.Context, in *eventapi.MakeEventRequest) (*eventapi.MakeEventResponse, error) {
@@ -115,26 +100,7 @@ func (s *Server) MakeEvent(ctx context.Context, in *eventapi.MakeEventRequest) (
 		s.eventsMap = make(map[int64]*eventapi.Event)
 	}
 	s.eventsMap[eventID] = event
-	log.Printf("%d made event: %d", event.SenderID, eventID)
-	exchangeName := fmt.Sprintf("%d", in.SenderID)
-	queueName := fmt.Sprintf("%d", in.SenderID)
-	expiration := fmt.Sprintf("%d", in.Time)
-	err := s.channel.PublishWithContext(
-		ctx,
-		exchangeName, // exchange
-		queueName,    // routing key
-		false,        // mandatory
-		false,        // immediate
-		amqp.Publishing{
-			DeliveryMode: amqp.Persistent,
-			ContentType:  "application/json",
-			Expiration:   expiration,
-			Body:         []byte(fmt.Sprintf(`{"eventID": %d, "senderID": %d, "time": %d, "name": "%s"}`, eventID, in.SenderID, in.Time, in.Name)),
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
+	log.Printf("\u001b[93mSERVER\u001b[0m: Made event senderID %d, eventID %d", event.SenderID, eventID)
 	return &eventapi.MakeEventResponse{EventID: eventID}, status.New(codes.OK, "").Err()
 }
 
@@ -145,7 +111,7 @@ func (s *Server) GetEvent(ctx context.Context, in *eventapi.GetEventRequest) (*e
 	if !exists || (exists && (event.SenderID != senderID)) {
 		return nil, status.Errorf(codes.NotFound, "Event with ID %d by user %d not found", eventID, senderID)
 	}
-	log.Printf("%d got event: %d", senderID, eventID)
+	log.Printf("\u001b[93mSERVER\u001b[0m: Got event senderID %d, eventID %d", senderID, eventID)
 	return &eventapi.GetEventResponse{
 		Event: &eventapi.Event{
 			SenderID: event.SenderID,
@@ -161,11 +127,11 @@ func (s *Server) DeleteEvent(ctx context.Context, in *eventapi.GetEventRequest) 
 	senderID := in.SenderID
 	event, exists := s.eventsMap[eventID]
 	if !exists || event.SenderID != senderID {
-		return nil, status.Errorf(codes.NotFound, "Event with ID %d by user %d not found", eventID, senderID)
+		return nil, status.Errorf(codes.NotFound, "EventID %d by senderID %d not found", eventID, senderID)
 	}
 	delete(s.eventsMap, eventID)
-	deleteresponse := fmt.Sprintf("%d deleted event: %d", senderID, eventID)
-	log.Print(deleteresponse)
+	deleteresponse := fmt.Sprintf("EventID %d by senderID %d deleted", eventID, senderID)
+	log.Printf("\u001b[93mSERVER\u001b[0m: Deleted event senderID %d, eventID %d", senderID, eventID)
 	return &eventapi.DeleteEventResponse{Deleteresponse: deleteresponse}, status.New(codes.OK, "").Err()
 }
 
@@ -184,12 +150,36 @@ func (s *Server) GetEvents(in *eventapi.GetEventsRequest, stream eventapi.EventM
 		SenderID: in.SenderID,
 		Events:   eventsToSend,
 	}
-	log.Printf("%d requested events", in.SenderID)
+	log.Printf("\u001b[93mSERVER\u001b[0m: Requested events senderID %d", in.SenderID)
 	return stream.Send(response)
 }
 
 func (s *Server) Exit(ctx context.Context, in *eventapi.ExitRequest) (*eventapi.ExitResponse, error) {
-	log.Printf("%d exited", in.SenderID)
+	log.Printf("\u001b[93mSERVER\u001b[0m: Exited senderID %d", in.SenderID)
 	goodbye := fmt.Sprintf("Goodbye, %d", in.SenderID)
 	return &eventapi.ExitResponse{Goodbye: goodbye}, nil
+}
+
+func (s *Server) PublishMessages(ctx context.Context, event *eventapi.Event) error {
+	ExchangeName := "EventExchange"
+	queueName := fmt.Sprintf("%d", event.SenderID)
+	expiration := fmt.Sprintf("%d", event.Time)
+	err := s.channel.PublishWithContext(
+		ctx,
+		ExchangeName, // exchange
+		queueName,    // routing key
+		false,        // mandatory
+		false,        // immediate
+		amqp.Publishing{
+			DeliveryMode: amqp.Persistent,
+			ContentType:  "application/json",
+			Expiration:   expiration,
+			Body:         []byte(fmt.Sprintf(`{"eventID": %d, "senderID": %d, "time": %d, "name": "%s"}`, event.EventID, event.SenderID, event.Time, event.Name)),
+		},
+	)
+	if err != nil {
+		return err
+	}
+	log.Printf("\u001b[93mSERVER\u001b[0m: Published message senderID %d: eventID %d", event.SenderID, event.EventID)
+	return nil
 }

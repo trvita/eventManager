@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"event/api/eventapi"
 	eventsrv "event/internal/event_server"
 
@@ -16,7 +17,7 @@ import (
 var (
 	addr    = flag.String("h", "localhost", "The server IP address")
 	port    = flag.Int("p", 50051, "The server port")
-	brkaddr = flag.Int("b", 5672, "The broker port")
+	brkaddr = flag.Int("brk", 5672, "The broker port")
 )
 
 func main() {
@@ -29,20 +30,34 @@ func main() {
 
 	s := grpc.NewServer()
 
-	brk := fmt.Sprintf("amqp://guest:guest@localhost:%d/", *brkaddr)
-	conn, err := amqp.Dial(brk)
-	eventsrv.FailOnError(err, "Failed to connect to RabbitMQ")
-	defer conn.Close()
-	ch, err := conn.Channel()
+	brkconn, err := amqp.Dial(fmt.Sprintf("amqp://guest:guest@localhost:%d/", *brkaddr))
+	eventsrv.FailOnError(err, "Failed to brkconnect to RabbitMQ")
+	defer brkconn.Close()
+	ch, err := brkconn.Channel()
 	eventsrv.FailOnError(err, "Failed to open a channel")
 	defer ch.Close()
-	// отдельная gouroutine которая понимает какое событие срабатывает чтобы отправить его
-	server := eventsrv.MakeNewEventServer(ch)
 
+	server := eventsrv.MakeNewEventServer(ch).(*eventsrv.Server)
 	eventapi.RegisterEventManagerServer(s, server)
+	err = ch.ExchangeDelete("EventExchange", false, false) // для изменения типа точки обмена
+	if err != nil {
+		log.Printf("Failed to delete exchange: %v", err)
+	}
+	err = ch.ExchangeDeclare(
+		eventsrv.ExchangeName,
+		"direct",
+		true,  // durable
+		false, // autoDelete
+		false, // internal
+		false, // noWait
+		nil,   // arguments
+	)
+	eventsrv.FailOnError(err, "Failed to declare an exchange")
 
-	log.Printf("server listening at %v", lis.Addr())
+	go eventsrv.ProcessEvents(context.Background(), server)
+
+	log.Printf("Server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		log.Fatalf("Failed to serve: %v", err)
 	}
 }
