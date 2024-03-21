@@ -13,25 +13,16 @@ import (
 	"syscall"
 	"time"
 
+	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type Color string
-
-const (
-	Black      Color = "\u001b[30m"
-	Red        Color = "\u001b[31m"
-	Green      Color = "\u001b[32m"
-	Yellow     Color = "\u001b[93m"
-	Blue       Color = "\u001b[34m"
-	ColorReset Color = "\u001b[0m"
-)
-
 var (
-	addr = flag.String("dst", "localhost", "The server IP address")
-	port = flag.Int("p", 50051, "The server port")
-	sdid = flag.Int64("sender-id", 0, "Sender ID")
+	addr    = flag.String("dst", "localhost", "The server IP address")
+	port    = flag.Int("p", 50051, "The server port")
+	sdid    = flag.Int64("sender-id", 0, "Sender ID")
+	brkaddr = flag.Int("brk", 5672, "The broker port")
 )
 
 func main() {
@@ -39,6 +30,10 @@ func main() {
 	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", *addr, *port), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	eventcl.FailOnError(err, "Failed to connect to server")
 	defer conn.Close()
+
+	brkconn, err := amqp.Dial(fmt.Sprintf("amqp://guest:guest@localhost:%d/", *brkaddr))
+	eventcl.FailOnError(err, "Failed to connect to RabbitMQ")
+	defer brkconn.Close()
 
 	c := eventapi.NewEventManagerClient(conn)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -56,6 +51,7 @@ func main() {
 	*sdid = r.SenderID
 	fmt.Printf("\u001b[93m > Your ID: %d\n\u001b[0m", *sdid)
 
+	go eventcl.GetMessages(sdid, c, brkconn)
 	commandChan := make(chan []string)
 	go eventcl.ProcessCommands(c, ctx, sdid, ssid, commandChan)
 	scanner := bufio.NewScanner(os.Stdin)
@@ -68,6 +64,4 @@ func main() {
 			break
 		}
 	}
-
-	go eventcl.GetMessages(sdid, c)
 }
